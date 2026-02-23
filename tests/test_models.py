@@ -1,21 +1,29 @@
 from datetime import date
 from decimal import Decimal
-from unittest import TestCase
 
 import pytest
 from sqlalchemy.exc import IntegrityError
 
 from app.models import (
-    User, Vendor, Account, Category, BudgetedExpense,
-    Transaction, AnalysisPeriod, ExpenseAnalysis,
+    User,
+    Vendor,
+    Account,
+    Category,
+    BudgetedExpense,
+    Transaction,
+    AnalysisPeriod,
+    ExpenseAnalysis,
 )
 from app.models.enums import AccountType, TransactionType, Variability, Frequency
 
 
 def _make_user(session, username="testuser", email="test@example.com"):
     user = User(
-        username=username, email=email, password_hash="hash",
-        first_name="Test", last_name="User",
+        username=username,
+        email=email,
+        password_hash="hash",
+        first_name="Test",
+        last_name="User",
     )
     session.add(user)
     session.flush()
@@ -71,7 +79,9 @@ class TestAccountModel:
         user = _make_user(session)
         vendor = _make_vendor(session)
         acct = Account(
-            name="Freedom", vendor_id=vendor.id, owner_id=user.id,
+            name="Freedom",
+            vendor_id=vendor.id,
+            owner_id=user.id,
             account_type=AccountType.CREDIT_CARD.value,
         )
         session.add(acct)
@@ -84,7 +94,9 @@ class TestAccountModel:
         user = _make_user(session)
         vendor = _make_vendor(session)
         acct = Account(
-            name="Checking", vendor_id=vendor.id, owner_id=user.id,
+            name="Checking",
+            vendor_id=vendor.id,
+            owner_id=user.id,
             account_type=AccountType.CHECKING.value,
         )
         session.add(acct)
@@ -125,10 +137,14 @@ class TestBudgetedExpenseModel:
         cat = _make_category(session, "Housing")
         sub = _make_category(session, "Mortgage", parent=cat)
         exp = BudgetedExpense(
-            payee="Wells Fargo", variability=Variability.FIXED.value,
-            frequency=Frequency.MONTHLY.value, date_scheduled=date(2026, 3, 1),
-            budgeted_amount=Decimal("1500.00"), user_id=user.id,
-            category_id=cat.id, subcategory_id=sub.id,
+            payee="Wells Fargo",
+            variability=Variability.FIXED.value,
+            frequency=Frequency.MONTHLY.value,
+            date_scheduled=date(2026, 3, 1),
+            budgeted_amount=Decimal("1500.00"),
+            user_id=user.id,
+            category_id=cat.id,
+            subcategory_id=sub.id,
         )
         session.add(exp)
         session.flush()
@@ -141,8 +157,10 @@ class TestTransactionModel:
     def test_create_transaction(self, session):
         user = _make_user(session)
         txn = Transaction(
-            transaction_date=date(2026, 2, 15), payee="Grocery Store",
-            amount=Decimal("52.30"), transaction_type=TransactionType.DEBIT.value,
+            transaction_date=date(2026, 2, 15),
+            payee="Grocery Store",
+            amount=Decimal("52.30"),
+            transaction_type=TransactionType.DEBIT.value,
             user_id=user.id,
         )
         session.add(txn)
@@ -156,8 +174,10 @@ class TestAnalysisPeriodModel:
     def test_create_period(self, session):
         user = _make_user(session)
         period = AnalysisPeriod(
-            name="January 2026", start_date=date(2026, 1, 1),
-            end_date=date(2026, 1, 31), user_id=user.id,
+            name="January 2026",
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 1, 31),
+            user_id=user.id,
         )
         session.add(period)
         session.flush()
@@ -165,16 +185,24 @@ class TestAnalysisPeriodModel:
 
     def test_unique_user_period_name(self, session):
         user = _make_user(session)
-        session.add(AnalysisPeriod(
-            name="Q1", start_date=date(2026, 1, 1),
-            end_date=date(2026, 3, 31), user_id=user.id,
-        ))
+        session.add(
+            AnalysisPeriod(
+                name="Q1",
+                start_date=date(2026, 1, 1),
+                end_date=date(2026, 3, 31),
+                user_id=user.id,
+            )
+        )
         session.flush()
         with pytest.raises(IntegrityError):
-            session.add(AnalysisPeriod(
-                name="Q1", start_date=date(2026, 1, 1),
-                end_date=date(2026, 3, 31), user_id=user.id,
-            ))
+            session.add(
+                AnalysisPeriod(
+                    name="Q1",
+                    start_date=date(2026, 1, 1),
+                    end_date=date(2026, 3, 31),
+                    user_id=user.id,
+                )
+            )
             session.flush()
 
 
@@ -183,15 +211,21 @@ class TestExpenseAnalysisModel:
         user = _make_user(session)
         cat = _make_category(session, "Food")
         period = AnalysisPeriod(
-            name="Feb 2026", start_date=date(2026, 2, 1),
-            end_date=date(2026, 2, 28), user_id=user.id,
+            name="Feb 2026",
+            start_date=date(2026, 2, 1),
+            end_date=date(2026, 2, 28),
+            user_id=user.id,
         )
         session.add(period)
         session.flush()
         ea = ExpenseAnalysis(
-            period_id=period.id, user_id=user.id, category_id=cat.id,
-            budgeted_amount=Decimal("500.00"), actual_amount=Decimal("450.00"),
-            variance=Decimal("50.00"), transaction_count=12,
+            period_id=period.id,
+            user_id=user.id,
+            category_id=cat.id,
+            budgeted_amount=Decimal("500.00"),
+            actual_amount=Decimal("450.00"),
+            variance=Decimal("50.00"),
+            transaction_count=12,
         )
         session.add(ea)
         session.flush()
@@ -201,6 +235,7 @@ class TestExpenseAnalysisModel:
 
 class TestEnums:
     """Verify enum values match the schema spec."""
+
     def test_account_types(self):
         expected = {"checking", "savings", "credit_card", "investment", "loan", "other"}
         assert {e.value for e in AccountType} == expected

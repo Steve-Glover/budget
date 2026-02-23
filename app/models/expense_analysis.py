@@ -32,7 +32,10 @@ class ExpenseAnalysis(TimestampMixin, db.Model):
     __tablename__ = "expense_analysis"
     __table_args__ = (
         UniqueConstraint(
-            "period_id", "user_id", "category_id", "subcategory_id",
+            "period_id",
+            "user_id",
+            "category_id",
+            "subcategory_id",
             name="uq_expense_analysis_period_user_category_subcategory",
         ),
     )
@@ -44,17 +47,13 @@ class ExpenseAnalysis(TimestampMixin, db.Model):
     actual_amount: Mapped[Decimal] = mapped_column(
         Numeric(12, 2), default=Decimal("0.00")
     )
-    variance: Mapped[Decimal] = mapped_column(
-        Numeric(12, 2), default=Decimal("0.00")
-    )
+    variance: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"))
     transaction_count: Mapped[int] = mapped_column(Integer, default=0)
     period_id: Mapped[int] = mapped_column(
         ForeignKey("analysis_periods.id"), index=True
     )
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    category_id: Mapped[int] = mapped_column(
-        ForeignKey("categories.id"), index=True
-    )
+    category_id: Mapped[int] = mapped_column(ForeignKey("categories.id"), index=True)
     subcategory_id: Mapped[int | None] = mapped_column(
         ForeignKey("categories.id"), index=True
     )

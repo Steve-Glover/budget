@@ -6,6 +6,7 @@ from app.extensions import db, migrate
 def create_app(config_name=None):
     if config_name is None:
         import os
+
         config_name = os.environ.get("FLASK_CONFIG", "default")
 
     app = Flask(__name__)

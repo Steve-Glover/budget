@@ -12,7 +12,9 @@ from app.models.enums import TransactionType
 class Transaction(TimestampMixin, db.Model):
     __tablename__ = "transactions"
     __table_args__ = (
-        Index("ix_transactions_user_id_transaction_date", "user_id", "transaction_date"),
+        Index(
+            "ix_transactions_user_id_transaction_date", "user_id", "transaction_date"
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

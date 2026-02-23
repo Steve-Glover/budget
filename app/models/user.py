@@ -18,9 +18,13 @@ class User(TimestampMixin, db.Model):
 
     # Relationships
     accounts = relationship("Account", back_populates="owner", lazy="dynamic")
-    budgeted_expenses = relationship("BudgetedExpense", back_populates="user", lazy="dynamic")
+    budgeted_expenses = relationship(
+        "BudgetedExpense", back_populates="user", lazy="dynamic"
+    )
     transactions = relationship("Transaction", back_populates="user", lazy="dynamic")
-    analysis_periods = relationship("AnalysisPeriod", back_populates="user", lazy="dynamic")
+    analysis_periods = relationship(
+        "AnalysisPeriod", back_populates="user", lazy="dynamic"
+    )
 
     def __repr__(self):
         return f"<User {self.username}>"

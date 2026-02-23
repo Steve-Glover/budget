@@ -19,7 +19,9 @@ class Category(TimestampMixin, db.Model):
     )
 
     # Self-referencing relationship
-    parent = relationship("Category", remote_side="Category.id", back_populates="children")
+    parent = relationship(
+        "Category", remote_side="Category.id", back_populates="children"
+    )
     children = relationship("Category", back_populates="parent", lazy="dynamic")
 
     @property
