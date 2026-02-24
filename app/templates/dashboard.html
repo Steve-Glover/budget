@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — Budget{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+<p class="text-muted">Summary and analysis coming in Phase 4.</p>
+
+<div class="row mt-4">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Accounts</h5>
+        <p class="card-text">Manage your financial accounts.</p>
+        <a href="{{ url_for('accounts.list_accounts') }}" class="btn btn-primary">View Accounts</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Budgets</h5>
+        <p class="card-text">Plan your monthly expenses.</p>
+        <a href="{{ url_for('budgets.list_budgets') }}" class="btn btn-primary">View Budgets</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Transactions</h5>
+        <p class="card-text">Track your spending.</p>
+        <a href="{{ url_for('transactions.list_transactions') }}" class="btn btn-primary">View Transactions</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Transactions — Budget{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1>Transactions</h1>
+  <div>
+    <a href="{{ url_for('transactions.import_csv') }}" class="btn btn-outline-primary">Import CSV</a>
+    <a href="{{ url_for('transactions.create_transaction') }}" class="btn btn-primary">+ New Transaction</a>
+  </div>
+</div>
+
+<form method="GET" class="row g-2 mb-3">
+  <div class="col-auto">
+    <input type="date" name="start_date" class="form-control form-control-sm"
+           value="{{ filters.get('start_date', '') }}" placeholder="Start date">
+  </div>
+  <div class="col-auto">
+    <input type="date" name="end_date" class="form-control form-control-sm"
+           value="{{ filters.get('end_date', '') }}" placeholder="End date">
+  </div>
+  <div class="col-auto">
+    <select name="category_id" class="form-select form-select-sm">
+      <option value="">All Categories</option>
+      {% for cat in categories %}
+        <option value="{{ cat.id }}" {% if filters.get('category_id')|int == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <select name="account_id" class="form-select form-select-sm">
+      <option value="">All Accounts</option>
+      {% for acct in accounts %}
+        <option value="{{ acct.id }}" {% if filters.get('account_id')|int == acct.id %}selected{% endif %}>{{ acct.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-sm btn-outline-primary">Filter</button>
+    <a href="{{ url_for('transactions.list_transactions') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+  </div>
+</form>
+
+{% if transactions %}
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Payee</th>
+      <th>Category</th>
+      <th>Type</th>
+      <th class="text-end">Amount</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for txn in transactions %}
+    <tr>
+      <td>{{ txn.transaction_date.strftime('%Y-%m-%d') }}</td>
+      <td>{{ txn.payee }}</td>
+      <td>
+        {% if txn.category %}{{ txn.category.name }}{% endif %}
+        {% if txn.subcategory %} / {{ txn.subcategory.name }}{% endif %}
+      </td>
+      <td>
+        {% if txn.transaction_type == 'debit' %}
+          <span class="badge bg-danger">Debit</span>
+        {% else %}
+          <span class="badge bg-success">Credit</span>
+        {% endif %}
+      </td>
+      <td class="text-end">${{ "{:,.2f}".format(txn.amount) }}</td>
+      <td>
+        <a href="{{ url_for('transactions.edit_transaction', transaction_id=txn.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+        <form method="POST" action="{{ url_for('transactions.delete_transaction', transaction_id=txn.id) }}" class="d-inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this transaction?')">Del</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if total_pages > 1 %}
+<nav>
+  <ul class="pagination">
+    {% for p in range(1, total_pages + 1) %}
+      <li class="page-item {% if p == page %}active{% endif %}">
+        <a class="page-link" href="?page={{ p }}{% for k, v in filters.items() if k != 'page' %}&{{ k }}={{ v }}{% endfor %}">{{ p }}</a>
+      </li>
+    {% endfor %}
+  </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<p class="text-muted">No transactions found.</p>
+{% endif %}
+{% endblock %}

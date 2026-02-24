@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Import CSV — Budget{% endblock %}
+
+{% block content %}
+<h1>Import Transactions from CSV</h1>
+
+<div class="alert alert-info">
+  <strong>Expected columns:</strong> date, payee, amount, type (debit/credit)<br>
+  <strong>Optional columns:</strong> post_date, description, notes
+</div>
+
+<form method="POST" enctype="multipart/form-data" class="mt-3" style="max-width: 500px;">
+  {{ form.hidden_tag() }}
+
+  <div class="mb-3">
+    {{ form.csv_file.label(class="form-label") }}
+    {{ form.csv_file(class="form-control") }}
+    {% for error in form.csv_file.errors %}<div class="text-danger">{{ error }}</div>{% endfor %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.account_id.label(class="form-label") }}
+    {{ form.account_id(class="form-select") }}
+  </div>
+
+  <button type="submit" class="btn btn-primary">Import</button>
+  <a href="{{ url_for('transactions.list_transactions') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

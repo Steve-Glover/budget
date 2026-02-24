@@ -18,4 +18,8 @@ def create_app(config_name=None):
     # Import models so Alembic can detect them
     from app import models  # noqa: F401
 
+    from app.routes import register_blueprints
+
+    register_blueprints(app)
+
     return app

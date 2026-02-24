@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Accounts — Budget{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1>Accounts</h1>
+  <a href="{{ url_for('accounts.create_account') }}" class="btn btn-primary">+ New Account</a>
+</div>
+
+<div class="mb-3">
+  {% if show_inactive %}
+    <a href="{{ url_for('accounts.list_accounts') }}" class="btn btn-sm btn-outline-secondary">Hide Inactive</a>
+  {% else %}
+    <a href="{{ url_for('accounts.list_accounts', show_inactive='1') }}" class="btn btn-sm btn-outline-secondary">Show Inactive</a>
+  {% endif %}
+</div>
+
+{% if accounts %}
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Vendor</th>
+      <th>Type</th>
+      <th>Last 4</th>
+      <th class="text-end">Balance</th>
+      <th>Status</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for acct in accounts %}
+    <tr{% if not acct.is_active %} class="text-muted"{% endif %}>
+      <td>{{ acct.name }}</td>
+      <td>{{ acct.vendor.short_name }}</td>
+      <td>{{ acct.account_type.replace('_', ' ').title() }}</td>
+      <td>{{ acct.account_number_last4 or '—' }}</td>
+      <td class="text-end">${{ "{:,.2f}".format(acct.balance) }}</td>
+      <td>
+        {% if acct.is_active %}
+          <span class="badge bg-success">Active</span>
+        {% else %}
+          <span class="badge bg-secondary">Inactive</span>
+        {% endif %}
+      </td>
+      <td><a href="{{ url_for('accounts.edit_account', account_id=acct.id) }}" class="btn btn-sm btn-outline-primary">Edit</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="text-muted">No accounts yet. Create one to get started.</p>
+{% endif %}
+{% endblock %}

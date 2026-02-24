@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} — Budget{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<form method="POST" class="mt-3" style="max-width: 500px;">
+  {{ form.hidden_tag() }}
+
+  <div class="mb-3">
+    {{ form.name.label(class="form-label") }}
+    {{ form.name(class="form-control") }}
+    {% for error in form.name.errors %}<div class="text-danger">{{ error }}</div>{% endfor %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.vendor_id.label(class="form-label") }}
+    {{ form.vendor_id(class="form-select") }}
+    {% for error in form.vendor_id.errors %}<div class="text-danger">{{ error }}</div>{% endfor %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.account_type.label(class="form-label") }}
+    {{ form.account_type(class="form-select") }}
+  </div>
+
+  <div class="mb-3">
+    {{ form.account_number_last4.label(class="form-label") }}
+    {{ form.account_number_last4(class="form-control", maxlength="4") }}
+  </div>
+
+  <div class="mb-3">
+    {{ form.balance.label(class="form-label") }}
+    {{ form.balance(class="form-control", step="0.01") }}
+  </div>
+
+  <div class="mb-3 form-check">
+    {{ form.is_active(class="form-check-input") }}
+    {{ form.is_active.label(class="form-check-label") }}
+  </div>
+
+  <button type="submit" class="btn btn-primary">Save</button>
+  <a href="{{ url_for('accounts.list_accounts') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}
