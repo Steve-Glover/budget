@@ -1,9 +1,10 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from sqlalchemy import MetaData
+from sqlalchemy.orm import DeclarativeBase
 
 # Explicit naming convention for Alembic compatibility
-convention = {
+_convention = {
     "ix": "ix_%(column_0_label)s",
     "uq": "uq_%(table_name)s_%(column_0_name)s",
     "ck": "ck_%(table_name)s_%(constraint_name)s",
@@ -11,6 +12,10 @@ convention = {
     "pk": "pk_%(table_name)s",
 }
 
-metadata = MetaData(naming_convention=convention)
-db = SQLAlchemy(metadata=metadata)
+
+class Base(DeclarativeBase):
+    metadata = MetaData(naming_convention=_convention)
+
+
+db = SQLAlchemy(model_class=Base)
 migrate = Migrate()
