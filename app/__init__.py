@@ -1,6 +1,6 @@
 from flask import Flask
 from config import config
-from app.extensions import db, migrate
+from app.extensions import db, migrate, csrf
 
 
 def create_app(config_name=None):
@@ -14,6 +14,7 @@ def create_app(config_name=None):
 
     db.init_app(app)
     migrate.init_app(app, db)
+    csrf.init_app(app)
 
     # Import models so Alembic can detect them
     from app import models  # noqa: F401

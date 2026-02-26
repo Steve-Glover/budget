@@ -22,3 +22,8 @@ def db(app):
 @pytest.fixture
 def session(db):
     yield db.session
+
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
