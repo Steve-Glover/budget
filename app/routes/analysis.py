@@ -1,6 +1,8 @@
-from flask import Blueprint, render_template, redirect, url_for, flash
+from flask import Blueprint, render_template, redirect, url_for, flash, request
 
+from app.extensions import db
 from app.forms.analysis_forms import AnalysisPeriodForm
+from app.models.category import Category
 from app.services import analysis_service
 
 bp = Blueprint("analysis", __name__)
@@ -60,9 +62,35 @@ def delete_period(period_id):
 
 @bp.route("/<int:period_id>/report")
 def period_report(period_id):
-    # Stub — full implementation in Commit 2
     period = analysis_service.get_period(period_id)
     if not period:
         flash("Period not found.", "danger")
         return redirect(url_for("analysis.list_periods"))
-    return redirect(url_for("analysis.list_periods"))
+
+    category_id = request.args.get("category_id", type=int)
+    rows = analysis_service.aggregate_by_category(
+        period_id, DEFAULT_USER_ID, category_id
+    )
+
+    drill_category = None
+    if category_id:
+        drill_category = db.session.get(Category, category_id)
+
+    return render_template(
+        "analysis/report.html",
+        period=period,
+        rows=rows,
+        category_id=category_id,
+        drill_category=drill_category,
+    )
+
+
+@bp.route("/<int:period_id>/recompute", methods=["POST"])
+def recompute_period(period_id):
+    period = analysis_service.get_period(period_id)
+    if not period:
+        flash("Period not found.", "danger")
+        return redirect(url_for("analysis.list_periods"))
+    analysis_service.recompute_analysis(period_id, DEFAULT_USER_ID)
+    flash("Analysis recomputed.", "success")
+    return redirect(url_for("analysis.period_report", period_id=period_id))

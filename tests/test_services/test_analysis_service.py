@@ -255,3 +255,93 @@ class TestRecomputeAnalysis:
 
     def test_nonexistent_period(self, session, user):
         assert analysis_service.recompute_analysis(9999, user.id) == []
+
+
+class TestAggregateByCategory:
+    """Tests for aggregate_by_category()."""
+
+    @pytest.fixture
+    def setup(self, session, user, categories):
+        """Period with two subcategory rows (both under Food)."""
+        period = analysis_service.create_period(
+            "Feb 2026", date(2026, 2, 1), date(2026, 2, 28), user.id
+        )
+        # Groceries: $500 budgeted, $350 actual
+        budget_service.create_budget_item(
+            "Grocery Budget",
+            Variability.VARIABLE,
+            Frequency.MONTHLY,
+            date(2026, 2, 1),
+            Decimal("500.00"),
+            user.id,
+            categories["food"].id,
+            subcategory_id=categories["groceries"].id,
+        )
+        transaction_service.create_transaction(
+            date(2026, 2, 10),
+            "Store",
+            Decimal("350.00"),
+            TransactionType.DEBIT,
+            user.id,
+            category_id=categories["food"].id,
+            subcategory_id=categories["groceries"].id,
+        )
+        # Dining Out: $200 actual, no budget
+        transaction_service.create_transaction(
+            date(2026, 2, 15),
+            "Restaurant",
+            Decimal("200.00"),
+            TransactionType.DEBIT,
+            user.id,
+            category_id=categories["food"].id,
+            subcategory_id=categories["dining"].id,
+        )
+        analysis_service.recompute_analysis(period.id, user.id)
+        return period, categories
+
+    def test_top_level_aggregation(self, session, user, setup):
+        period, cats = setup
+        rows = analysis_service.aggregate_by_category(period.id, user.id)
+        assert len(rows) == 1
+        row = rows[0]
+        assert row.category_name == "Food"
+        assert row.budgeted_amount == Decimal("500.00")
+        assert row.actual_amount == Decimal("550.00")
+        assert row.variance == Decimal("-50.00")
+        assert row.transaction_count == 2
+
+    def test_top_level_pct(self, session, user, setup):
+        period, _ = setup
+        rows = analysis_service.aggregate_by_category(period.id, user.id)
+        assert rows[0].pct == 110  # 550/500 * 100
+
+    def test_drill_down(self, session, user, setup):
+        period, cats = setup
+        rows = analysis_service.aggregate_by_category(
+            period.id, user.id, category_id=cats["food"].id
+        )
+        assert len(rows) == 2
+        names = {r.category_name for r in rows}
+        assert names == {"Groceries", "Dining Out"}
+
+    def test_drill_down_pct_none_when_no_budget(self, session, user, setup):
+        period, cats = setup
+        rows = analysis_service.aggregate_by_category(
+            period.id, user.id, category_id=cats["food"].id
+        )
+        dining = next(r for r in rows if r.category_name == "Dining Out")
+        assert dining.pct is None
+
+    def test_empty_period(self, session, user):
+        period = analysis_service.create_period(
+            "Empty", date(2026, 3, 1), date(2026, 3, 31), user.id
+        )
+        assert analysis_service.aggregate_by_category(period.id, user.id) == []
+
+    def test_sorted_by_actual_desc(self, session, user, setup):
+        period, cats = setup
+        rows = analysis_service.aggregate_by_category(
+            period.id, user.id, category_id=cats["food"].id
+        )
+        # Dining Out ($200) should come before Groceries... wait, $350 > $200
+        assert rows[0].actual_amount >= rows[1].actual_amount
