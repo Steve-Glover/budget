@@ -3,36 +3,125 @@
 {% block title %}Dashboard — Budget{% endblock %}
 
 {% block content %}
-<h1>Dashboard</h1>
-<p class="text-muted">Summary and analysis coming in Phase 4.</p>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1>Dashboard</h1>
+  {% if periods %}
+  <form method="GET" action="{{ url_for('main.dashboard') }}" class="d-flex align-items-center gap-2">
+    <label for="period_id" class="text-muted small mb-0">Period:</label>
+    <select name="period_id" id="period_id" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+      {% for p in periods %}
+      <option value="{{ p.id }}" {% if active_period and p.id == active_period.id %}selected{% endif %}>{{ p.name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+  {% endif %}
+</div>
 
-<div class="row mt-4">
-  <div class="col-md-4">
-    <div class="card">
+{% if not periods %}
+<div class="alert alert-info">
+  No analysis periods defined.
+  <a href="{{ url_for('analysis.create_period') }}">Create a period</a> to see budget vs actual data.
+</div>
+
+{% else %}
+
+{# Summary cards #}
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="card text-center">
       <div class="card-body">
-        <h5 class="card-title">Accounts</h5>
-        <p class="card-text">Manage your financial accounts.</p>
-        <a href="{{ url_for('accounts.list_accounts') }}" class="btn btn-primary">View Accounts</a>
+        <div class="text-muted small">Budgeted</div>
+        <div class="fs-4 fw-bold">${{ "%.2f"|format(total_budgeted) }}</div>
       </div>
     </div>
   </div>
-  <div class="col-md-4">
-    <div class="card">
+  <div class="col-sm-4">
+    <div class="card text-center">
       <div class="card-body">
-        <h5 class="card-title">Budgets</h5>
-        <p class="card-text">Plan your monthly expenses.</p>
-        <a href="{{ url_for('budgets.list_budgets') }}" class="btn btn-primary">View Budgets</a>
+        <div class="text-muted small">Spent</div>
+        <div class="fs-4 fw-bold">${{ "%.2f"|format(total_actual) }}</div>
       </div>
     </div>
   </div>
-  <div class="col-md-4">
-    <div class="card">
+  <div class="col-sm-4">
+    <div class="card text-center">
       <div class="card-body">
-        <h5 class="card-title">Transactions</h5>
-        <p class="card-text">Track your spending.</p>
-        <a href="{{ url_for('transactions.list_transactions') }}" class="btn btn-primary">View Transactions</a>
+        <div class="text-muted small">Variance</div>
+        <div class="fs-4 fw-bold {% if total_variance >= 0 %}text-success{% else %}text-danger{% endif %}">
+          {% if total_variance >= 0 %}+{% endif %}${{ "%.2f"|format(total_variance) }}
+        </div>
       </div>
     </div>
   </div>
 </div>
+
+{# Category bars #}
+{% if category_rows %}
+<h5 class="mb-2">By Category
+  <a href="{{ url_for('analysis.period_report', period_id=active_period.id) }}" class="btn btn-sm btn-outline-secondary ms-2">Full Report</a>
+</h5>
+<div class="list-group mb-4">
+  {% for row in category_rows %}
+  <a href="{{ url_for('analysis.period_report', period_id=active_period.id, category_id=row.category_id) }}"
+     class="list-group-item list-group-item-action">
+    <div class="d-flex justify-content-between align-items-center mb-1">
+      <span class="fw-semibold">{{ row.category_name }}</span>
+      <div class="text-end">
+        <span class="fw-bold">${{ "%.2f"|format(row.actual_amount) }}</span>
+        {% if row.budgeted_amount > 0 %}
+        <span class="text-muted small ms-1">/ ${{ "%.2f"|format(row.budgeted_amount) }}</span>
+        {% endif %}
+      </div>
+    </div>
+    {% if row.budgeted_amount > 0 %}
+    {% set pct = row.pct if row.pct is not none else 0 %}
+    {% if pct <= 75 %}{% set bar_class = "bg-success" %}
+    {% elif pct <= 100 %}{% set bar_class = "bg-warning" %}
+    {% else %}{% set bar_class = "bg-danger" %}{% endif %}
+    <div class="progress" style="height: 6px;">
+      <div class="progress-bar {{ bar_class }}" role="progressbar"
+           style="width: {{ [pct, 100] | min }}%"
+           aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
+    {% endif %}
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<p class="text-muted">No analysis data for this period. <a href="{{ url_for('analysis.recompute_period', period_id=active_period.id) }}" onclick="event.preventDefault(); document.getElementById('recompute-form').submit()">Recompute</a> to generate it.</p>
+<form id="recompute-form" method="POST" action="{{ url_for('analysis.recompute_period', period_id=active_period.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+{% endif %}
+
+{# Recent transactions #}
+<h5 class="mb-2">Recent Transactions
+  <a href="{{ url_for('transactions.list_transactions') }}" class="btn btn-sm btn-outline-secondary ms-2">View All</a>
+</h5>
+{% if recent_txns %}
+<table class="table table-sm table-striped">
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Payee</th>
+      <th>Type</th>
+      <th class="text-end">Amount</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for txn in recent_txns %}
+    <tr>
+      <td>{{ txn.transaction_date.strftime('%b %d') }}</td>
+      <td>{{ txn.payee }}</td>
+      <td><span class="badge {% if txn.transaction_type == 'debit' %}bg-secondary{% else %}bg-success{% endif %}">{{ txn.transaction_type }}</span></td>
+      <td class="text-end">${{ "%.2f"|format(txn.amount) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="text-muted">No transactions in this period.</p>
+{% endif %}
+
+{% endif %}
 {% endblock %}
