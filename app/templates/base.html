@@ -34,6 +34,28 @@
             <a class="nav-link" href="{{ url_for('analysis.list_periods') }}">Analysis</a>
           </li>
         </ul>
+        <ul class="navbar-nav ms-auto">
+          {% if current_user.is_authenticated %}
+            <li class="nav-item">
+              <span class="nav-link text-light">Welcome, {{ current_user.first_name }}</span>
+            </li>
+            <li class="nav-item">
+              <form method="POST" action="{{ url_for('auth.logout') }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-link nav-link">Logout</button>
+              </form>
+            </li>
+          {% else %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+            </li>
+            {% if config.REGISTRATION_ENABLED %}
+              <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
+              </li>
+            {% endif %}
+          {% endif %}
+        </ul>
       </div>
     </div>
   </nav>

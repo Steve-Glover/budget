@@ -1,5 +1,11 @@
+import secrets
+import sys
+
+from flask import current_app
+
 from app.extensions import db
 from app.models.category import Category
+from app.models.user import User
 from app.models.vendor import Vendor
 
 DEFAULT_CATEGORIES = {
@@ -83,8 +89,42 @@ def seed_vendors() -> list[Vendor]:
     return created
 
 
+def seed_default_user() -> User | None:
+    """Seed a default admin user in dev/testing. Idempotent — skips if exists."""
+    if (
+        current_app.config.get("TESTING") is False
+        and current_app.config.get("DEBUG") is False
+    ):
+        return None
+
+    existing = User.query.filter_by(username="admin").first()
+    if existing:
+        return None
+
+    password = secrets.token_urlsafe(12)
+    user = User(
+        username="admin",
+        email="admin@localhost",
+        first_name="Admin",
+        last_name="User",
+    )
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+    print(
+        f"Seeded default user — username: admin, password: {password}",
+        file=sys.stderr,
+    )
+    return user
+
+
 def seed_all() -> dict:
     """Seed all default data. Returns counts of created items."""
     categories = seed_categories()
     vendors = seed_vendors()
-    return {"categories": len(categories), "vendors": len(vendors)}
+    user = seed_default_user()
+    return {
+        "categories": len(categories),
+        "vendors": len(vendors),
+        "user_created": user is not None,
+    }

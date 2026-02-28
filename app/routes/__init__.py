@@ -3,9 +3,11 @@ from app.routes.accounts import bp as accounts_bp
 from app.routes.budgets import bp as budgets_bp
 from app.routes.transactions import bp as transactions_bp
 from app.routes.analysis import bp as analysis_bp
+from app.routes.auth import bp as auth_bp
 
 
 def register_blueprints(app):
+    app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(main_bp)
     app.register_blueprint(accounts_bp, url_prefix="/accounts")
     app.register_blueprint(budgets_bp, url_prefix="/budgets")

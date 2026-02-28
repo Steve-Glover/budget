@@ -6,6 +6,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 class BaseConfig:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    REGISTRATION_ENABLED = True
 
 
 class DevelopmentConfig(BaseConfig):
@@ -23,6 +24,7 @@ class TestingConfig(BaseConfig):
 
 class ProductionConfig(BaseConfig):
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
+    REGISTRATION_ENABLED = False
 
 
 config = {

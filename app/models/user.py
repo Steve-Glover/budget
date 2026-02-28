@@ -1,11 +1,13 @@
+from flask_login import UserMixin
 from sqlalchemy import String, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db
 from app.models.base import TimestampMixin
 
 
-class User(TimestampMixin, db.Model):
+class User(UserMixin, TimestampMixin, db.Model):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -25,6 +27,12 @@ class User(TimestampMixin, db.Model):
     analysis_periods = relationship(
         "AnalysisPeriod", back_populates="user", lazy="dynamic"
     )
+
+    def set_password(self, password: str) -> None:
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password: str) -> bool:
+        return check_password_hash(self.password_hash, password)
 
     def __repr__(self):
         return f"<User {self.username}>"
