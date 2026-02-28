@@ -2,17 +2,18 @@ from datetime import date
 from decimal import Decimal
 
 from flask import Blueprint, render_template, request
+from flask_login import login_required, current_user
 
 from app.services import analysis_service, transaction_service
 
 bp = Blueprint("main", __name__)
 
-DEFAULT_USER_ID = 1
-
 
 @bp.route("/")
+@login_required
 def dashboard():
-    periods = analysis_service.get_periods_for_user(DEFAULT_USER_ID)
+    user_id = current_user.id
+    periods = analysis_service.get_periods_for_user(user_id)
     today = date.today()
 
     # Determine active period: explicit override → auto-detect → most recent
@@ -20,7 +21,7 @@ def dashboard():
     active_period = None
 
     if period_id:
-        active_period = analysis_service.get_period(period_id)
+        active_period = analysis_service.get_period_for_user(period_id, user_id)
 
     if not active_period:
         for p in periods:
@@ -36,10 +37,10 @@ def dashboard():
 
     if active_period:
         category_rows = analysis_service.aggregate_by_category(
-            active_period.id, DEFAULT_USER_ID
+            active_period.id, user_id
         )
         recent_txns = transaction_service.get_transactions_for_user(
-            DEFAULT_USER_ID,
+            user_id,
             start_date=active_period.start_date,
             end_date=active_period.end_date,
             limit=10,

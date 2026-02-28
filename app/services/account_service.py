@@ -31,6 +31,10 @@ def get_account(account_id: int) -> Account | None:
     return db.session.get(Account, account_id)
 
 
+def get_account_for_user(account_id: int, user_id: int) -> Account | None:
+    return Account.query.filter_by(id=account_id, owner_id=user_id).first()
+
+
 def get_accounts_for_user(user_id: int, *, active_only: bool = True) -> list[Account]:
     query = Account.query.filter_by(owner_id=user_id)
     if active_only:

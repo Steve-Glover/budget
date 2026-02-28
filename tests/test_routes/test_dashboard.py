@@ -5,24 +5,9 @@ import pytest
 
 from app.models.category import Category
 from app.models.enums import TransactionType, Variability, Frequency
-from app.models.user import User
 from app.services import analysis_service, budget_service, transaction_service
 
 TODAY = date.today()
-
-
-@pytest.fixture
-def user(session):
-    u = User(
-        username="dashuser",
-        email="dash@test.com",
-        password_hash="h",
-        first_name="D",
-        last_name="U",
-    )
-    session.add(u)
-    session.commit()
-    return u
 
 
 @pytest.fixture
@@ -53,32 +38,34 @@ def past_period(session, user):
 
 
 class TestDashboardEmpty:
-    def test_no_periods_shows_prompt(self, client):
-        resp = client.get("/")
+    def test_no_periods_shows_prompt(self, logged_in_client):
+        resp = logged_in_client.get("/")
         assert resp.status_code == 200
         assert b"No analysis periods" in resp.data
         assert b"Create a period" in resp.data
 
 
 class TestDashboardPeriodDetection:
-    def test_auto_detects_current_period(self, client, current_period):
-        resp = client.get("/")
+    def test_auto_detects_current_period(self, logged_in_client, current_period):
+        resp = logged_in_client.get("/")
         assert resp.status_code == 200
         assert current_period.name.encode() in resp.data
 
-    def test_falls_back_to_most_recent(self, client, past_period):
+    def test_falls_back_to_most_recent(self, logged_in_client, past_period):
         """When no period contains today, use most recent."""
-        resp = client.get("/")
+        resp = logged_in_client.get("/")
         assert resp.status_code == 200
         assert past_period.name.encode() in resp.data
 
-    def test_period_id_override(self, client, current_period, past_period):
-        resp = client.get(f"/?period_id={past_period.id}")
+    def test_period_id_override(self, logged_in_client, current_period, past_period):
+        resp = logged_in_client.get(f"/?period_id={past_period.id}")
         assert resp.status_code == 200
         assert past_period.name.encode() in resp.data
 
-    def test_period_selector_rendered(self, client, current_period, past_period):
-        resp = client.get("/")
+    def test_period_selector_rendered(
+        self, logged_in_client, current_period, past_period
+    ):
+        resp = logged_in_client.get("/")
         assert b"period_id" in resp.data
         assert current_period.name.encode() in resp.data
         assert past_period.name.encode() in resp.data
@@ -109,26 +96,28 @@ class TestDashboardContent:
         analysis_service.recompute_analysis(current_period.id, user.id)
         return current_period
 
-    def test_shows_summary_cards(self, client, period_with_data):
-        resp = client.get("/")
+    def test_shows_summary_cards(self, logged_in_client, period_with_data):
+        resp = logged_in_client.get("/")
         assert b"Budgeted" in resp.data
         assert b"Spent" in resp.data
         assert b"Variance" in resp.data
 
-    def test_shows_category_bars(self, client, period_with_data):
-        resp = client.get("/")
+    def test_shows_category_bars(self, logged_in_client, period_with_data):
+        resp = logged_in_client.get("/")
         assert b"Food" in resp.data
         assert b"500.00" in resp.data
         assert b"200.00" in resp.data
 
-    def test_shows_recent_transactions(self, client, period_with_data):
-        resp = client.get("/")
+    def test_shows_recent_transactions(self, logged_in_client, period_with_data):
+        resp = logged_in_client.get("/")
         assert b"Superstore" in resp.data
 
-    def test_full_report_link_present(self, client, period_with_data):
-        resp = client.get("/")
+    def test_full_report_link_present(self, logged_in_client, period_with_data):
+        resp = logged_in_client.get("/")
         assert b"Full Report" in resp.data
 
-    def test_no_analysis_data_shows_recompute_prompt(self, client, current_period):
-        resp = client.get("/")
+    def test_no_analysis_data_shows_recompute_prompt(
+        self, logged_in_client, current_period
+    ):
+        resp = logged_in_client.get("/")
         assert b"No analysis data" in resp.data

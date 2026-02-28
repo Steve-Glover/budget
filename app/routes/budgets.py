@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+from flask_login import login_required, current_user
 
 from app.models.category import Category
 from app.models.enums import Variability, Frequency
@@ -9,14 +10,13 @@ from app.forms.budget_forms import BudgetForm
 
 bp = Blueprint("budgets", __name__)
 
-DEFAULT_USER_ID = 1
-
 
 @bp.route("/")
+@login_required
 def list_budgets():
     show_inactive = request.args.get("show_inactive", "0") == "1"
     items = budget_service.get_budget_items_for_user(
-        DEFAULT_USER_ID, active_only=not show_inactive
+        current_user.id, active_only=not show_inactive
     )
     return render_template(
         "budgets/list.html", items=items, show_inactive=show_inactive
@@ -24,6 +24,7 @@ def list_budgets():
 
 
 @bp.route("/create", methods=["GET", "POST"])
+@login_required
 def create_budget():
     form = BudgetForm()
     _populate_category_choices(form)
@@ -35,7 +36,7 @@ def create_budget():
             frequency=Frequency(form.frequency.data),
             date_scheduled=form.date_scheduled.data,
             budgeted_amount=Decimal(str(form.budgeted_amount.data)),
-            user_id=DEFAULT_USER_ID,
+            user_id=current_user.id,
             category_id=form.category_id.data,
             subcategory_id=form.subcategory_id.data or None,
             notes=form.notes.data or None,
@@ -47,8 +48,9 @@ def create_budget():
 
 
 @bp.route("/<int:budget_id>/edit", methods=["GET", "POST"])
+@login_required
 def edit_budget(budget_id):
-    item = budget_service.get_budget_item(budget_id)
+    item = budget_service.get_budget_item_for_user(budget_id, current_user.id)
     if not item:
         flash("Budget item not found.", "danger")
         return redirect(url_for("budgets.list_budgets"))
@@ -76,6 +78,7 @@ def edit_budget(budget_id):
 
 
 @bp.route("/api/subcategories/<int:category_id>")
+@login_required
 def subcategories_for_category(category_id):
     """JSON endpoint for dynamic subcategory dropdown."""
     subs = Category.query.filter_by(parent_id=category_id).order_by(Category.name).all()

@@ -46,6 +46,10 @@ def get_transaction(transaction_id: int) -> Transaction | None:
     return db.session.get(Transaction, transaction_id)
 
 
+def get_transaction_for_user(transaction_id: int, user_id: int) -> Transaction | None:
+    return Transaction.query.filter_by(id=transaction_id, user_id=user_id).first()
+
+
 def get_transactions_for_user(
     user_id: int,
     *,

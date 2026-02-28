@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask_login import login_required, current_user
 
 from app.models.vendor import Vendor
 from app.models.enums import AccountType
@@ -9,15 +10,13 @@ from app.forms.account_forms import AccountForm
 
 bp = Blueprint("accounts", __name__)
 
-# Hardcoded user_id until auth is added in Phase 5
-DEFAULT_USER_ID = 1
-
 
 @bp.route("/")
+@login_required
 def list_accounts():
     show_inactive = request.args.get("show_inactive", "0") == "1"
     accounts = account_service.get_accounts_for_user(
-        DEFAULT_USER_ID, active_only=not show_inactive
+        current_user.id, active_only=not show_inactive
     )
     return render_template(
         "accounts/list.html", accounts=accounts, show_inactive=show_inactive
@@ -25,6 +24,7 @@ def list_accounts():
 
 
 @bp.route("/create", methods=["GET", "POST"])
+@login_required
 def create_account():
     form = AccountForm()
     form.vendor_id.choices = [
@@ -36,7 +36,7 @@ def create_account():
             name=form.name.data,
             vendor_id=form.vendor_id.data,
             account_type=AccountType(form.account_type.data),
-            owner_id=DEFAULT_USER_ID,
+            owner_id=current_user.id,
             account_number_last4=form.account_number_last4.data or None,
             balance=Decimal(str(form.balance.data)),
         )
@@ -47,8 +47,9 @@ def create_account():
 
 
 @bp.route("/<int:account_id>/edit", methods=["GET", "POST"])
+@login_required
 def edit_account(account_id):
-    account = account_service.get_account(account_id)
+    account = account_service.get_account_for_user(account_id, current_user.id)
     if not account:
         flash("Account not found.", "danger")
         return redirect(url_for("accounts.list_accounts"))

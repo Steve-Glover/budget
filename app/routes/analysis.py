@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask_login import login_required, current_user
 
 from app.extensions import db
 from app.forms.analysis_forms import AnalysisPeriodForm
@@ -7,16 +8,16 @@ from app.services import analysis_service
 
 bp = Blueprint("analysis", __name__)
 
-DEFAULT_USER_ID = 1
-
 
 @bp.route("/")
+@login_required
 def list_periods():
-    periods = analysis_service.get_periods_for_user(DEFAULT_USER_ID)
+    periods = analysis_service.get_periods_for_user(current_user.id)
     return render_template("analysis/list.html", periods=periods)
 
 
 @bp.route("/create", methods=["GET", "POST"])
+@login_required
 def create_period():
     form = AnalysisPeriodForm()
     if form.validate_on_submit():
@@ -24,7 +25,7 @@ def create_period():
             name=form.name.data,
             start_date=form.start_date.data,
             end_date=form.end_date.data,
-            user_id=DEFAULT_USER_ID,
+            user_id=current_user.id,
         )
         flash("Analysis period created.", "success")
         return redirect(url_for("analysis.list_periods"))
@@ -32,8 +33,9 @@ def create_period():
 
 
 @bp.route("/<int:period_id>/edit", methods=["GET", "POST"])
+@login_required
 def edit_period(period_id):
-    period = analysis_service.get_period(period_id)
+    period = analysis_service.get_period_for_user(period_id, current_user.id)
     if not period:
         flash("Period not found.", "danger")
         return redirect(url_for("analysis.list_periods"))
@@ -52,8 +54,11 @@ def edit_period(period_id):
 
 
 @bp.route("/<int:period_id>/delete", methods=["POST"])
+@login_required
 def delete_period(period_id):
-    if analysis_service.delete_period(period_id):
+    period = analysis_service.get_period_for_user(period_id, current_user.id)
+    if period:
+        analysis_service.delete_period(period_id)
         flash("Period deleted.", "success")
     else:
         flash("Period not found.", "danger")
@@ -61,16 +66,16 @@ def delete_period(period_id):
 
 
 @bp.route("/<int:period_id>/report")
+@login_required
 def period_report(period_id):
-    period = analysis_service.get_period(period_id)
+    user_id = current_user.id
+    period = analysis_service.get_period_for_user(period_id, user_id)
     if not period:
         flash("Period not found.", "danger")
         return redirect(url_for("analysis.list_periods"))
 
     category_id = request.args.get("category_id", type=int)
-    rows = analysis_service.aggregate_by_category(
-        period_id, DEFAULT_USER_ID, category_id
-    )
+    rows = analysis_service.aggregate_by_category(period_id, user_id, category_id)
 
     drill_category = None
     if category_id:
@@ -86,11 +91,13 @@ def period_report(period_id):
 
 
 @bp.route("/<int:period_id>/recompute", methods=["POST"])
+@login_required
 def recompute_period(period_id):
-    period = analysis_service.get_period(period_id)
+    user_id = current_user.id
+    period = analysis_service.get_period_for_user(period_id, user_id)
     if not period:
         flash("Period not found.", "danger")
         return redirect(url_for("analysis.list_periods"))
-    analysis_service.recompute_analysis(period_id, DEFAULT_USER_ID)
+    analysis_service.recompute_analysis(period_id, user_id)
     flash("Analysis recomputed.", "success")
     return redirect(url_for("analysis.period_report", period_id=period_id))

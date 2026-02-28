@@ -27,6 +27,10 @@ def get_period(period_id: int) -> AnalysisPeriod | None:
     return db.session.get(AnalysisPeriod, period_id)
 
 
+def get_period_for_user(period_id: int, user_id: int) -> AnalysisPeriod | None:
+    return AnalysisPeriod.query.filter_by(id=period_id, user_id=user_id).first()
+
+
 def get_periods_for_user(user_id: int) -> list[AnalysisPeriod]:
     return (
         AnalysisPeriod.query.filter_by(user_id=user_id)

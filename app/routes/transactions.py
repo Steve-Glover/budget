@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask_login import login_required, current_user
 
 from app.models.category import Category
 from app.models.account import Account
@@ -11,11 +12,11 @@ from app.forms.transaction_forms import TransactionForm, CSVImportForm
 
 bp = Blueprint("transactions", __name__)
 
-DEFAULT_USER_ID = 1
 PER_PAGE = 25
 
 
 @bp.route("/")
+@login_required
 def list_transactions():
     page = request.args.get("page", 1, type=int)
     start = request.args.get("start_date")
@@ -23,7 +24,8 @@ def list_transactions():
     category_id = request.args.get("category_id", type=int)
     account_id = request.args.get("account_id", type=int)
 
-    kwargs = {"user_id": DEFAULT_USER_ID}
+    user_id = current_user.id
+    kwargs = {"user_id": user_id}
     if start:
         kwargs["start_date"] = date.fromisoformat(start)
     if end:
@@ -42,7 +44,7 @@ def list_transactions():
 
     categories = Category.query.filter_by(parent_id=None).order_by(Category.name).all()
     accounts = (
-        Account.query.filter_by(owner_id=DEFAULT_USER_ID, is_active=True)
+        Account.query.filter_by(owner_id=user_id, is_active=True)
         .order_by(Account.name)
         .all()
     )
@@ -59,17 +61,19 @@ def list_transactions():
 
 
 @bp.route("/create", methods=["GET", "POST"])
+@login_required
 def create_transaction():
     form = TransactionForm()
     _populate_form_choices(form)
 
     if form.validate_on_submit():
+        user_id = current_user.id
         txn = transaction_service.create_transaction(
             transaction_date=form.transaction_date.data,
             payee=form.payee.data,
             amount=Decimal(str(form.amount.data)),
             transaction_type=TransactionType(form.transaction_type.data),
-            user_id=DEFAULT_USER_ID,
+            user_id=user_id,
             post_date=form.post_date.data or None,
             description=form.description.data or None,
             notes=form.notes.data or None,
@@ -79,7 +83,7 @@ def create_transaction():
             subcategory_id=form.subcategory_id.data or None,
         )
         analysis_service.recompute_periods_in_range(
-            DEFAULT_USER_ID, txn.transaction_date, txn.transaction_date
+            user_id, txn.transaction_date, txn.transaction_date
         )
         flash("Transaction created.", "success")
         return redirect(url_for("transactions.list_transactions"))
@@ -90,8 +94,10 @@ def create_transaction():
 
 
 @bp.route("/<int:transaction_id>/edit", methods=["GET", "POST"])
+@login_required
 def edit_transaction(transaction_id):
-    txn = transaction_service.get_transaction(transaction_id)
+    user_id = current_user.id
+    txn = transaction_service.get_transaction_for_user(transaction_id, user_id)
     if not txn:
         flash("Transaction not found.", "danger")
         return redirect(url_for("transactions.list_transactions"))
@@ -117,7 +123,7 @@ def edit_transaction(transaction_id):
             subcategory_id=form.subcategory_id.data or None,
         )
         analysis_service.recompute_periods_in_range(
-            DEFAULT_USER_ID, min(old_date, new_date), max(old_date, new_date)
+            user_id, min(old_date, new_date), max(old_date, new_date)
         )
         flash("Transaction updated.", "success")
         return redirect(url_for("transactions.list_transactions"))
@@ -128,12 +134,14 @@ def edit_transaction(transaction_id):
 
 
 @bp.route("/<int:transaction_id>/delete", methods=["POST"])
+@login_required
 def delete_transaction(transaction_id):
-    txn = transaction_service.get_transaction(transaction_id)
+    user_id = current_user.id
+    txn = transaction_service.get_transaction_for_user(transaction_id, user_id)
     if txn:
         txn_date = txn.transaction_date
         transaction_service.delete_transaction(transaction_id)
-        analysis_service.recompute_periods_in_range(DEFAULT_USER_ID, txn_date, txn_date)
+        analysis_service.recompute_periods_in_range(user_id, txn_date, txn_date)
         flash("Transaction deleted.", "success")
     else:
         flash("Transaction not found.", "danger")
@@ -141,10 +149,12 @@ def delete_transaction(transaction_id):
 
 
 @bp.route("/import", methods=["GET", "POST"])
+@login_required
 def import_csv():
+    user_id = current_user.id
     form = CSVImportForm()
     accounts = (
-        Account.query.filter_by(owner_id=DEFAULT_USER_ID, is_active=True)
+        Account.query.filter_by(owner_id=user_id, is_active=True)
         .order_by(Account.name)
         .all()
     )
@@ -155,11 +165,11 @@ def import_csv():
         csv_text = csv_file.read().decode("utf-8")
         account_id = form.account_id.data or None
         result = transaction_service.import_csv(
-            csv_text, DEFAULT_USER_ID, account_id=account_id
+            csv_text, user_id, account_id=account_id
         )
         if result["min_date"] and result["max_date"]:
             analysis_service.recompute_periods_in_range(
-                DEFAULT_USER_ID, result["min_date"], result["max_date"]
+                user_id, result["min_date"], result["max_date"]
             )
         flash(f"Imported {result['imported']} transactions.", "success")
         if result["errors"]:
@@ -171,6 +181,7 @@ def import_csv():
 
 
 def _populate_form_choices(form):
+    user_id = current_user.id
     categories = Category.query.filter_by(parent_id=None).order_by(Category.name).all()
     form.category_id.choices = [("", "— None —")] + [(c.id, c.name) for c in categories]
 
@@ -184,7 +195,7 @@ def _populate_form_choices(form):
     ]
 
     accounts = (
-        Account.query.filter_by(owner_id=DEFAULT_USER_ID, is_active=True)
+        Account.query.filter_by(owner_id=user_id, is_active=True)
         .order_by(Account.name)
         .all()
     )

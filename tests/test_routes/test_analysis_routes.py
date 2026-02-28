@@ -5,22 +5,7 @@ import pytest
 
 from app.models.category import Category
 from app.models.enums import TransactionType, Variability, Frequency
-from app.models.user import User
 from app.services import analysis_service, budget_service, transaction_service
-
-
-@pytest.fixture
-def user(session):
-    u = User(
-        username="routeuser",
-        email="route@test.com",
-        password_hash="h",
-        first_name="R",
-        last_name="U",
-    )
-    session.add(u)
-    session.commit()
-    return u
 
 
 @pytest.fixture
@@ -31,25 +16,25 @@ def period(session, user):
 
 
 class TestListPeriods:
-    def test_empty_list(self, client):
-        resp = client.get("/analysis/")
+    def test_empty_list(self, logged_in_client):
+        resp = logged_in_client.get("/analysis/")
         assert resp.status_code == 200
         assert b"No analysis periods yet" in resp.data
 
-    def test_with_periods(self, client, period):
-        resp = client.get("/analysis/")
+    def test_with_periods(self, logged_in_client, period):
+        resp = logged_in_client.get("/analysis/")
         assert resp.status_code == 200
         assert b"Feb 2026" in resp.data
 
 
 class TestCreatePeriod:
-    def test_get_form(self, client):
-        resp = client.get("/analysis/create")
+    def test_get_form(self, logged_in_client):
+        resp = logged_in_client.get("/analysis/create")
         assert resp.status_code == 200
         assert b"Create Period" in resp.data
 
-    def test_post_valid(self, client, user):
-        resp = client.post(
+    def test_post_valid(self, logged_in_client, user):
+        resp = logged_in_client.post(
             "/analysis/create",
             data={
                 "name": "March 2026",
@@ -75,20 +60,20 @@ class TestCreatePeriod:
         ],
         ids=["missing_name", "start_after_end"],
     )
-    def test_post_invalid(self, client, data, error_fragment):
-        resp = client.post("/analysis/create", data=data)
+    def test_post_invalid(self, logged_in_client, data, error_fragment):
+        resp = logged_in_client.post("/analysis/create", data=data)
         assert resp.status_code == 200
         assert error_fragment in resp.data
 
 
 class TestEditPeriod:
-    def test_get_form(self, client, period):
-        resp = client.get(f"/analysis/{period.id}/edit")
+    def test_get_form(self, logged_in_client, period):
+        resp = logged_in_client.get(f"/analysis/{period.id}/edit")
         assert resp.status_code == 200
         assert b"Edit Period" in resp.data
 
-    def test_post_valid(self, client, period):
-        resp = client.post(
+    def test_post_valid(self, logged_in_client, period):
+        resp = logged_in_client.post(
             f"/analysis/{period.id}/edit",
             data={
                 "name": "Updated",
@@ -100,21 +85,21 @@ class TestEditPeriod:
         assert b"Period updated" in resp.data
         assert b"Updated" in resp.data
 
-    def test_nonexistent(self, client):
-        resp = client.get("/analysis/9999/edit", follow_redirects=True)
+    def test_nonexistent(self, logged_in_client):
+        resp = logged_in_client.get("/analysis/9999/edit", follow_redirects=True)
         assert b"Period not found" in resp.data
 
 
 class TestDeletePeriod:
-    def test_delete(self, client, period):
-        resp = client.post(
+    def test_delete(self, logged_in_client, period):
+        resp = logged_in_client.post(
             f"/analysis/{period.id}/delete",
             follow_redirects=True,
         )
         assert b"Period deleted" in resp.data
 
-    def test_delete_nonexistent(self, client):
-        resp = client.post("/analysis/9999/delete", follow_redirects=True)
+    def test_delete_nonexistent(self, logged_in_client):
+        resp = logged_in_client.post("/analysis/9999/delete", follow_redirects=True)
         assert b"Period not found" in resp.data
 
 
@@ -157,37 +142,39 @@ def period_with_data(session, user, period, categories):
 
 
 class TestPeriodReport:
-    def test_report_no_data(self, client, period):
-        resp = client.get(f"/analysis/{period.id}/report")
+    def test_report_no_data(self, logged_in_client, period):
+        resp = logged_in_client.get(f"/analysis/{period.id}/report")
         assert resp.status_code == 200
         assert b"No analysis data" in resp.data
 
-    def test_report_nonexistent(self, client):
-        resp = client.get("/analysis/9999/report", follow_redirects=True)
+    def test_report_nonexistent(self, logged_in_client):
+        resp = logged_in_client.get("/analysis/9999/report", follow_redirects=True)
         assert b"Period not found" in resp.data
 
-    def test_report_shows_category(self, client, period_with_data):
-        resp = client.get(f"/analysis/{period_with_data.id}/report")
+    def test_report_shows_category(self, logged_in_client, period_with_data):
+        resp = logged_in_client.get(f"/analysis/{period_with_data.id}/report")
         assert resp.status_code == 200
         assert b"Food" in resp.data
         assert b"350.00" in resp.data
         assert b"500.00" in resp.data
 
-    def test_report_shows_summary_cards(self, client, period_with_data):
-        resp = client.get(f"/analysis/{period_with_data.id}/report")
+    def test_report_shows_summary_cards(self, logged_in_client, period_with_data):
+        resp = logged_in_client.get(f"/analysis/{period_with_data.id}/report")
         assert b"Budgeted" in resp.data
         assert b"Spent" in resp.data
         assert b"Variance" in resp.data
 
-    def test_drill_down(self, client, period_with_data, categories):
-        resp = client.get(
+    def test_drill_down(self, logged_in_client, period_with_data, categories):
+        resp = logged_in_client.get(
             f"/analysis/{period_with_data.id}/report?category_id={categories['food'].id}"
         )
         assert resp.status_code == 200
         assert b"Groceries" in resp.data
 
-    def test_drill_down_shows_back_arrow(self, client, period_with_data, categories):
-        resp = client.get(
+    def test_drill_down_shows_back_arrow(
+        self, logged_in_client, period_with_data, categories
+    ):
+        resp = logged_in_client.get(
             f"/analysis/{period_with_data.id}/report?category_id={categories['food'].id}"
         )
         assert b"All Periods" in resp.data
@@ -195,14 +182,14 @@ class TestPeriodReport:
 
 
 class TestRecomputePeriod:
-    def test_recompute_success(self, client, period):
-        resp = client.post(
+    def test_recompute_success(self, logged_in_client, period):
+        resp = logged_in_client.post(
             f"/analysis/{period.id}/recompute",
             follow_redirects=True,
         )
         assert resp.status_code == 200
         assert b"recomputed" in resp.data
 
-    def test_recompute_nonexistent(self, client):
-        resp = client.post("/analysis/9999/recompute", follow_redirects=True)
+    def test_recompute_nonexistent(self, logged_in_client):
+        resp = logged_in_client.post("/analysis/9999/recompute", follow_redirects=True)
         assert b"Period not found" in resp.data

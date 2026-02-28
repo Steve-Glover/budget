@@ -38,6 +38,10 @@ def get_budget_item(budget_id: int) -> BudgetedExpense | None:
     return db.session.get(BudgetedExpense, budget_id)
 
 
+def get_budget_item_for_user(budget_id: int, user_id: int) -> BudgetedExpense | None:
+    return BudgetedExpense.query.filter_by(id=budget_id, user_id=user_id).first()
+
+
 def get_budget_items_for_user(
     user_id: int, *, active_only: bool = True
 ) -> list[BudgetedExpense]:
