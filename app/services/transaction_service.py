@@ -122,6 +122,8 @@ def import_csv(
     reader = csv.DictReader(csv_data)
     imported = 0
     errors = []
+    min_date: date | None = None
+    max_date: date | None = None
 
     for row_num, row in enumerate(reader, start=2):  # row 1 is header
         try:
@@ -166,8 +168,15 @@ def import_csv(
         )
         db.session.add(txn)
         imported += 1
+        min_date = txn_date if min_date is None else min(min_date, txn_date)
+        max_date = txn_date if max_date is None else max(max_date, txn_date)
 
     if imported:
         db.session.commit()
 
-    return {"imported": imported, "errors": errors}
+    return {
+        "imported": imported,
+        "errors": errors,
+        "min_date": min_date,
+        "max_date": max_date,
+    }

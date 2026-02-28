@@ -257,6 +257,104 @@ class TestRecomputeAnalysis:
         assert analysis_service.recompute_analysis(9999, user.id) == []
 
 
+class TestOverlapFunctions:
+    def test_get_overlapping_exact_match(self, session, user):
+        period = analysis_service.create_period(
+            "Jan", date(2026, 1, 1), date(2026, 1, 31), user.id
+        )
+        results = analysis_service.get_overlapping_periods(user.id, date(2026, 1, 15))
+        assert len(results) == 1
+        assert results[0].id == period.id
+
+    def test_get_overlapping_boundary_dates(self, session, user):
+        analysis_service.create_period(
+            "Jan", date(2026, 1, 1), date(2026, 1, 31), user.id
+        )
+        assert (
+            len(analysis_service.get_overlapping_periods(user.id, date(2026, 1, 1)))
+            == 1
+        )
+        assert (
+            len(analysis_service.get_overlapping_periods(user.id, date(2026, 1, 31)))
+            == 1
+        )
+
+    def test_get_overlapping_no_match(self, session, user):
+        analysis_service.create_period(
+            "Jan", date(2026, 1, 1), date(2026, 1, 31), user.id
+        )
+        assert analysis_service.get_overlapping_periods(user.id, date(2026, 2, 1)) == []
+
+    def test_get_overlapping_multiple_periods(self, session, user):
+        analysis_service.create_period(
+            "Jan", date(2026, 1, 1), date(2026, 1, 31), user.id
+        )
+        analysis_service.create_period(
+            "Feb", date(2026, 2, 1), date(2026, 2, 28), user.id
+        )
+        results = analysis_service.get_overlapping_periods(user.id, date(2026, 1, 20))
+        assert len(results) == 1
+
+    def test_recompute_periods_in_range_overlapping(self, session, user, categories):
+        jan = analysis_service.create_period(
+            "Jan", date(2026, 1, 1), date(2026, 1, 31), user.id
+        )
+        feb = analysis_service.create_period(
+            "Feb", date(2026, 2, 1), date(2026, 2, 28), user.id
+        )
+        transaction_service.create_transaction(
+            date(2026, 1, 15),
+            "Store",
+            Decimal("100.00"),
+            TransactionType.DEBIT,
+            user.id,
+            category_id=categories["food"].id,
+        )
+        # Range overlaps Jan only
+        analysis_service.recompute_periods_in_range(
+            user.id, date(2026, 1, 1), date(2026, 1, 31)
+        )
+        from app.models.expense_analysis import ExpenseAnalysis
+
+        assert len(ExpenseAnalysis.query.filter_by(period_id=jan.id).all()) == 1
+        assert len(ExpenseAnalysis.query.filter_by(period_id=feb.id).all()) == 0
+
+    def test_recompute_periods_in_range_spans_both(self, session, user, categories):
+        jan = analysis_service.create_period(
+            "Jan", date(2026, 1, 1), date(2026, 1, 31), user.id
+        )
+        feb = analysis_service.create_period(
+            "Feb", date(2026, 2, 1), date(2026, 2, 28), user.id
+        )
+        for d in (date(2026, 1, 15), date(2026, 2, 10)):
+            transaction_service.create_transaction(
+                d,
+                "Store",
+                Decimal("50.00"),
+                TransactionType.DEBIT,
+                user.id,
+                category_id=categories["food"].id,
+            )
+        analysis_service.recompute_periods_in_range(
+            user.id, date(2026, 1, 15), date(2026, 2, 10)
+        )
+        from app.models.expense_analysis import ExpenseAnalysis
+
+        assert len(ExpenseAnalysis.query.filter_by(period_id=jan.id).all()) == 1
+        assert len(ExpenseAnalysis.query.filter_by(period_id=feb.id).all()) == 1
+
+    def test_recompute_periods_in_range_no_overlap(self, session, user, categories):
+        jan = analysis_service.create_period(
+            "Jan", date(2026, 1, 1), date(2026, 1, 31), user.id
+        )
+        analysis_service.recompute_periods_in_range(
+            user.id, date(2026, 3, 1), date(2026, 3, 31)
+        )
+        from app.models.expense_analysis import ExpenseAnalysis
+
+        assert len(ExpenseAnalysis.query.filter_by(period_id=jan.id).all()) == 0
+
+
 class TestAggregateByCategory:
     """Tests for aggregate_by_category()."""
 

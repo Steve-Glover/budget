@@ -151,6 +151,26 @@ def recompute_analysis(period_id: int, user_id: int) -> list[ExpenseAnalysis]:
     return results
 
 
+def get_overlapping_periods(user_id: int, a_date: date) -> list[AnalysisPeriod]:
+    """Return all analysis periods for user_id whose date range contains a_date."""
+    return AnalysisPeriod.query.filter(
+        AnalysisPeriod.user_id == user_id,
+        AnalysisPeriod.start_date <= a_date,
+        AnalysisPeriod.end_date >= a_date,
+    ).all()
+
+
+def recompute_periods_in_range(user_id: int, min_date: date, max_date: date) -> None:
+    """Recompute all periods for user_id that overlap [min_date, max_date]."""
+    periods = AnalysisPeriod.query.filter(
+        AnalysisPeriod.user_id == user_id,
+        AnalysisPeriod.start_date <= max_date,
+        AnalysisPeriod.end_date >= min_date,
+    ).all()
+    for period in periods:
+        recompute_analysis(period.id, user_id)
+
+
 def aggregate_by_category(
     period_id: int, user_id: int, category_id: int | None = None
 ) -> list[SimpleNamespace]:

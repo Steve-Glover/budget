@@ -11,3 +11,4 @@ __pycache__/
 *.db
 *claude*
 CLAUDE.md
+.ruff_cache/

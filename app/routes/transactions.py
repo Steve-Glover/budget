@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request
 from app.models.category import Category
 from app.models.account import Account
 from app.models.enums import TransactionType
-from app.services import transaction_service
+from app.services import transaction_service, analysis_service
 from app.forms.transaction_forms import TransactionForm, CSVImportForm
 
 bp = Blueprint("transactions", __name__)
@@ -64,7 +64,7 @@ def create_transaction():
     _populate_form_choices(form)
 
     if form.validate_on_submit():
-        transaction_service.create_transaction(
+        txn = transaction_service.create_transaction(
             transaction_date=form.transaction_date.data,
             payee=form.payee.data,
             amount=Decimal(str(form.amount.data)),
@@ -77,6 +77,9 @@ def create_transaction():
             credit_account_id=form.credit_account_id.data or None,
             category_id=form.category_id.data or None,
             subcategory_id=form.subcategory_id.data or None,
+        )
+        analysis_service.recompute_periods_in_range(
+            DEFAULT_USER_ID, txn.transaction_date, txn.transaction_date
         )
         flash("Transaction created.", "success")
         return redirect(url_for("transactions.list_transactions"))
@@ -97,9 +100,11 @@ def edit_transaction(transaction_id):
     _populate_form_choices(form)
 
     if form.validate_on_submit():
+        old_date = txn.transaction_date
+        new_date = form.transaction_date.data
         transaction_service.update_transaction(
             transaction_id,
-            transaction_date=form.transaction_date.data,
+            transaction_date=new_date,
             payee=form.payee.data,
             amount=Decimal(str(form.amount.data)),
             transaction_type=form.transaction_type.data,
@@ -111,6 +116,9 @@ def edit_transaction(transaction_id):
             category_id=form.category_id.data or None,
             subcategory_id=form.subcategory_id.data or None,
         )
+        analysis_service.recompute_periods_in_range(
+            DEFAULT_USER_ID, min(old_date, new_date), max(old_date, new_date)
+        )
         flash("Transaction updated.", "success")
         return redirect(url_for("transactions.list_transactions"))
 
@@ -121,7 +129,11 @@ def edit_transaction(transaction_id):
 
 @bp.route("/<int:transaction_id>/delete", methods=["POST"])
 def delete_transaction(transaction_id):
-    if transaction_service.delete_transaction(transaction_id):
+    txn = transaction_service.get_transaction(transaction_id)
+    if txn:
+        txn_date = txn.transaction_date
+        transaction_service.delete_transaction(transaction_id)
+        analysis_service.recompute_periods_in_range(DEFAULT_USER_ID, txn_date, txn_date)
         flash("Transaction deleted.", "success")
     else:
         flash("Transaction not found.", "danger")
@@ -145,6 +157,10 @@ def import_csv():
         result = transaction_service.import_csv(
             csv_text, DEFAULT_USER_ID, account_id=account_id
         )
+        if result["min_date"] and result["max_date"]:
+            analysis_service.recompute_periods_in_range(
+                DEFAULT_USER_ID, result["min_date"], result["max_date"]
+            )
         flash(f"Imported {result['imported']} transactions.", "success")
         if result["errors"]:
             for err in result["errors"][:5]:
