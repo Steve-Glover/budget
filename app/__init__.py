@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, render_template
 from config import config
 from app.extensions import db, migrate, csrf, login_manager
 
@@ -29,5 +29,14 @@ def create_app(config_name=None):
     from app.routes import register_blueprints
 
     register_blueprints(app)
+
+    @app.errorhandler(404)
+    def not_found(e):
+        return render_template("errors/404.html"), 404
+
+    @app.errorhandler(500)
+    def internal_error(e):
+        app.logger.exception("Internal server error")
+        return render_template("errors/500.html"), 500
 
     return app
