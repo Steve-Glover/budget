@@ -77,6 +77,18 @@ def edit_budget(budget_id):
     return render_template("budgets/form.html", form=form, title="Edit Budget Item")
 
 
+@bp.route("/<int:budget_id>/deactivate", methods=["POST"])
+@login_required
+def deactivate_budget(budget_id):
+    item = budget_service.get_budget_item_for_user(budget_id, current_user.id)
+    if item:
+        budget_service.deactivate_budget_item(budget_id)
+        flash("Budget item deactivated.", "success")
+    else:
+        flash("Budget item not found.", "danger")
+    return redirect(url_for("budgets.list_budgets"))
+
+
 @bp.route("/api/subcategories/<int:category_id>")
 @login_required
 def subcategories_for_category(category_id):

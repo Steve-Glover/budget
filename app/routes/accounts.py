@@ -73,3 +73,15 @@ def edit_account(account_id):
         return redirect(url_for("accounts.list_accounts"))
 
     return render_template("accounts/form.html", form=form, title="Edit Account")
+
+
+@bp.route("/<int:account_id>/deactivate", methods=["POST"])
+@login_required
+def deactivate_account(account_id):
+    account = account_service.get_account_for_user(account_id, current_user.id)
+    if account:
+        account_service.deactivate_account(account_id)
+        flash("Account deactivated.", "success")
+    else:
+        flash("Account not found.", "danger")
+    return redirect(url_for("accounts.list_accounts"))

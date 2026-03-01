@@ -41,6 +41,8 @@ class TestAnonymousRedirects:
     @pytest.mark.parametrize(
         "url",
         [
+            "/accounts/1/deactivate",
+            "/budgets/1/deactivate",
             "/transactions/1/delete",
             "/analysis/1/delete",
             "/analysis/1/recompute",
@@ -155,6 +157,34 @@ class TestCrossUserOwnership:
             f"/analysis/{period.id}/report", follow_redirects=True
         )
         assert b"Period not found" in resp.data
+
+    def test_cannot_deactivate_other_users_account(
+        self, logged_in_client, other_user, vendor
+    ):
+        acct = account_service.create_account(
+            "OtherAcct", vendor.id, AccountType.CHECKING, other_user.id
+        )
+        resp = logged_in_client.post(
+            f"/accounts/{acct.id}/deactivate", follow_redirects=True
+        )
+        assert b"Account not found" in resp.data
+
+    def test_cannot_deactivate_other_users_budget(
+        self, logged_in_client, other_user, category
+    ):
+        item = budget_service.create_budget_item(
+            "OtherBudget",
+            Variability.FIXED,
+            Frequency.MONTHLY,
+            date(2026, 1, 1),
+            Decimal("100.00"),
+            other_user.id,
+            category.id,
+        )
+        resp = logged_in_client.post(
+            f"/budgets/{item.id}/deactivate", follow_redirects=True
+        )
+        assert b"Budget item not found" in resp.data
 
     def test_cannot_delete_other_users_period(self, logged_in_client, other_user):
         period = analysis_service.create_period(
